@@ -150,46 +150,53 @@ void Particle::unitTests()
     cout << "Score: " << score << " / 7" << endl;
 }
 
-Particle::Particle(RenderTarget& target, int numPoints, Vector2i mouseClickPosition)
-    : m_A(2, numPoints), m_ttl(TTL), m_numPoints(numPoints)
-{
+Particle::Particle(RenderTarget& target, int numPoints, Vector2i mouseClickPosition) : m_A(2, numPoints), m_ttl(TTL), m_numPoints(numPoints) {
     // Initialize random seed
-    srand(static_cast<unsigned int>(time(nullptr)));
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_real_distribution<float> thetaDis(0.0f, static_cast<float>(M_PI / 2));
+    uniform_real_distribution<float> velocityDis(100.0f, 500.0f); // Random velocity between -100 and 500
+    uniform_real_distribution<float> radiusDis(20.0f, 80.0f);  // Random radius between 20 and 80
 
     // Initialize m_radiansPerSec to a random angular velocity in the range [0:PI]
     m_radiansPerSec = static_cast<float>(rand()) / RAND_MAX * static_cast<float>(M_PI);
 
     // Set up the Cartesian plane
-    m_cartesianPlane.setCenter(0, 0);
-    m_cartesianPlane.setSize(static_cast<float>(target.getSize().x), -1.0f * static_cast<float>(target.getSize().y));
+    this->m_cartesianPlane.setCenter(0, 0);
+    this->m_cartesianPlane.setSize(static_cast<float>(target.getSize().x), -1.0f * static_cast<float>(target.getSize().y));
 
     // Store the location of the center of this particle on the Cartesian plane
-    m_centerCoordinate = target.mapPixelToCoords(mouseClickPosition, m_cartesianPlane);
+    this->m_centerCoordinate = target.mapPixelToCoords(mouseClickPosition, m_cartesianPlane);
 
     // Assign random pixel velocities
-    m_vx = (rand() % 2 != 0 ? -1 : 1) * (rand() % 401 + 100); // Random velocity between -100 and 500
-    m_vy = (rand() % 2 != 0 ? -1 : 1) * (rand() % 401 + 100); // Random velocity between -100 and 500
+    this->m_vx = velocityDis(gen); 
+    this->m_vy = velocityDis(gen); 
+
+    if (rand() % 2 != 0) {
+        this->m_vx *= -1;
+        this->m_vy *= -1;
+    }
 
     // Assign colors
     m_color1 = Color::White;
     m_color2 = Color(rand() % 256, rand() % 256, rand() % 256); // Random color
 
     // Generate vertices
-    float theta = static_cast<float>(rand()) / RAND_MAX * static_cast<float>(M_PI / 2); // Angle between [0: PI/2]
+    float theta = thetaDis(gen);
     float dTheta = 2 * M_PI / (numPoints - 1); // Amount to rotate per vertex
 
     for (int j = 0; j < numPoints; ++j)
     {
         // Generate a random radius
-        float r = static_cast<float>(rand() % 61 + 20); // Random radius between 20 and 80
+        float r = radiusDis(gen);
 
         // Calculate Cartesian coordinates of the vertex
         float dx = r * cos(theta);
         float dy = r * sin(theta);
 
         // Assign the Cartesian coordinate of the newly generated vertex to m_A
-        m_A(0, j) = m_centerCoordinate.x + dx;
-        m_A(1, j) = m_centerCoordinate.y + dy;
+        this->m_A(0, j) = m_centerCoordinate.x + dx;
+        this->m_A(1, j) = m_centerCoordinate.y + dy;
 
         // Increment theta for the next iteration
         theta += dTheta;
@@ -201,19 +208,16 @@ void Particle::draw(RenderTarget& target, RenderStates states) const {
     VertexArray lines(TriangleFan, m_numPoints + 1);
 
     // Map centerCoordinate from Cartesian to pixel coordinates
-    Vector2f center = target.mapCoordsToPixel(m_centerCoordinate, m_cartesianPlane);
+    Vector2f pixelCenter = Vector2f(target.mapCoordsToPixel(this->m_centerCoordinate, this->m_cartesianPlane));
 
     // Assign the center position and color
-    lines[0].position = center;
-    lines[0].color = m_color1;
+    lines[0].position = pixelCenter;
+    lines[0].color = this->m_color1;
 
     // Loop to assign positions and colors for each vertex
-    for (int j = 1; j <= m_numPoints; ++j) {
-        // Map vertex position from Cartesian to pixel coordinates
-        Vector2f vertexPosition = target.mapCoordsToPixel(Vector2f(m_A(0, j - 1), m_A(1, j - 1)), m_cartesianPlane);
+    for (unsigned short j = 1; j <= m_numPoints; ++j) {
 
-        // Assign vertex position and color
-        lines[j].position = vertexPosition;
+        lines[j].position = Vector2f(target.mapCoordsToPixel(Vector2f(m_A(0, j - 1), m_A(1, j - 1)), this->m_cartesianPlane));
         lines[j].color = m_color2;
     }
 
@@ -223,17 +227,17 @@ void Particle::draw(RenderTarget& target, RenderStates states) const {
 
 void Particle::update(float dt) {
     // Subtract dt from m_ttl
-    m_ttl -= dt;
+    this->m_ttl -= dt;
 
     // Rotate the particle
-    rotate(dt * m_radiansPerSec);
+    rotate(dt * this->m_radiansPerSec);
 
     // Scale the particle
     scale(SCALE);
 
     // Calculate translation distances
-    float dx = m_vx * dt;
-    float dy = m_vy * dt - 0.5f * G * dt * dt; // Apply gravity to vertical velocity
+    float dx = this->m_vx * dt;
+    float dy = this->m_vy * dt - 0.5f * G * dt * dt; // Apply gravity to vertical velocity
 
     // Update vertical velocity with gravity
     m_vy += G * dt;
@@ -244,10 +248,10 @@ void Particle::update(float dt) {
 
 void Particle::translate(double xShift, double yShift) {
     // Construct a TranslationMatrix
-    Matrices::TranslationMatrix T(xShift, yShift, m_numPoints);
+    TranslationMatrix T(xShift, yShift, m_numPoints);
 
     // Add it to m_A
-    m_A = T + m_A;
+    this->m_A = T + m_A;
 
     // Update the particle's center coordinate
     m_centerCoordinate.x += xShift;
@@ -262,10 +266,10 @@ void Particle::rotate(double theta) {
     translate(-m_centerCoordinate.x, -m_centerCoordinate.y);
 
     // Construct a RotationMatrix
-    Matrices::RotationMatrix R(theta);
+    RotationMatrix R(theta);
 
     // Multiply it by m_A
-    m_A = R * m_A;
+    this-> m_A = R * m_A;
 
     // Shift the particle back to its original center
     translate(temp.x, temp.y);
@@ -279,45 +283,11 @@ void Particle::scale(double c) {
     translate(-m_centerCoordinate.x, -m_centerCoordinate.y);
 
     // Construct a ScalingMatrix
-    Matrices::ScalingMatrix S(c);
+    ScalingMatrix S(c);
 
     // Multiply it by m_A
-    m_A = S * m_A;
+    this->m_A = S * m_A;
 
     // Shift the particle back to its original center
     translate(temp.x, temp.y);
-}
-
-bool Particle::almostEqual(double a, double b, double eps) {
-    return fabs(a - b) < eps;
-}
-
-// Function to run unit tests
-void Particle::unitTests() {
-    // Test almostEqual function
-    cout << "Testing almostEqual function..." << endl;
-    bool testResult = true;
-
-    if (!almostEqual(1.0, 1.0)) {
-        cout << "Test 1 failed!" << endl;
-        testResult = false;
-    }
-
-    if (almostEqual(1.0, 2.0)) {
-        cout << "Test 2 failed!" << endl;
-        testResult = false;
-    }
-
-    if (!almostEqual(0.0, 0.00001)) {
-        cout << "Test 3 failed!" << endl;
-        testResult = false;
-    }
-    if (almostEqual(0.0, 0.1)) {
-        cout << "Test 4 failed!" << endl;
-        testResult = false;
-    }
-
-    if (testResult) {
-        cout << "All tests passed!" << endl;
-    }
 }

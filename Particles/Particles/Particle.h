@@ -1,5 +1,10 @@
 #pragma once
 #include "Matrices.h"
+#include "RotationMatrix.h"
+#include "TranslationMatrix.h"
+#include "ScalingMatrix.h"
+#include <cmath>
+#include <random>
 #include <SFML/Graphics.hpp>
 
 #define M_PI 3.1415926535897932384626433
