@@ -238,7 +238,8 @@ void Particle::update(float dt) {
     rotate(dt * this->m_radiansPerSec);
 
     // Scale the particle
-    scale(0.999);
+    float shrinkFactor = 0.5f;
+    scale(1.0f - shrinkFactor * dt);
 
     // Calculate translation distances
     float dx = this->m_vx * dt;
