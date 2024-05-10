@@ -158,15 +158,20 @@ Particle::Particle(RenderTarget& target, int numPoints, Vector2i mouseClickPosit
     uniform_real_distribution<float> velocityDis(100.0f, 500.0f); // Random velocity between -100 and 500
     uniform_real_distribution<float> radiusDis(20.0f, 80.0f);  // Random radius between 20 and 80
 
+    this->m_ttl = TTL;
+    this->m_numPoints = numPoints;
+
     // Initialize m_radiansPerSec to a random angular velocity in the range [0:PI]
     m_radiansPerSec = static_cast<float>(rand()) / RAND_MAX * static_cast<float>(M_PI);
 
     // Set up the Cartesian plane
     this->m_cartesianPlane.setCenter(0, 0);
-    this->m_cartesianPlane.setSize(static_cast<float>(target.getSize().x), -1.0f * static_cast<float>(target.getSize().y));
+    this->m_cartesianPlane.setSize(target.getSize().x, (-1.0) * target.getSize().y);
 
     // Store the location of the center of this particle on the Cartesian plane
-    this->m_centerCoordinate = target.mapPixelToCoords(mouseClickPosition, m_cartesianPlane);
+    this->m_centerCoordinate = Vector2f(round(target.mapPixelToCoords(mouseClickPosition, this->m_cartesianPlane).x),
+        round(target.mapPixelToCoords(mouseClickPosition, this->m_cartesianPlane).y));
+
 
     // Assign random pixel velocities
     this->m_vx = velocityDis(gen); 
@@ -214,11 +219,11 @@ void Particle::draw(RenderTarget& target, RenderStates states) const {
     lines[0].position = pixelCenter;
     lines[0].color = this->m_color1;
 
-    // Loop to assign positions and colors for each vertex
-    for (unsigned short j = 1; j <= m_numPoints; ++j) {
 
+    // Loop to assign positions and colors for each vertex
+    for (unsigned short j = 1; j <= m_numPoints; j++) {
         lines[j].position = Vector2f(target.mapCoordsToPixel(Vector2f(m_A(0, j - 1), m_A(1, j - 1)), this->m_cartesianPlane));
-        lines[j].color = m_color2;
+        lines[j].color = this->m_color2;
     }
 
     // Draw the VertexArray
@@ -233,14 +238,12 @@ void Particle::update(float dt) {
     rotate(dt * this->m_radiansPerSec);
 
     // Scale the particle
-    scale(SCALE);
+    scale(0.999);
 
     // Calculate translation distances
     float dx = this->m_vx * dt;
-    float dy = this->m_vy * dt - 0.5f * G * dt * dt; // Apply gravity to vertical velocity
-
-    // Update vertical velocity with gravity
-    m_vy += G * dt;
+    this->m_vy -= G * dt;
+    float dy = this->m_vy * dt;
 
     // Translate the particle
     translate(dx, dy);
@@ -248,7 +251,7 @@ void Particle::update(float dt) {
 
 void Particle::translate(double xShift, double yShift) {
     // Construct a TranslationMatrix
-    TranslationMatrix T(xShift, yShift, m_numPoints);
+    TranslationMatrix T(xShift, yShift, this->m_A.getCols());
 
     // Add it to m_A
     this->m_A = T + m_A;
@@ -260,7 +263,7 @@ void Particle::translate(double xShift, double yShift) {
 
 void Particle::rotate(double theta) {
     // Store the value of m_centerCoordinate in a temporary vector
-    Vector2f temp(m_centerCoordinate);
+    Vector2f temp = m_centerCoordinate;
 
     // Shift the particle's center back to the origin
     translate(-m_centerCoordinate.x, -m_centerCoordinate.y);
@@ -269,7 +272,7 @@ void Particle::rotate(double theta) {
     RotationMatrix R(theta);
 
     // Multiply it by m_A
-    this-> m_A = R * m_A;
+    this->m_A = R * m_A;
 
     // Shift the particle back to its original center
     translate(temp.x, temp.y);
@@ -277,7 +280,7 @@ void Particle::rotate(double theta) {
 
 void Particle::scale(double c) {
     // Store the value of m_centerCoordinate in a temporary vector
-    Vector2f temp(m_centerCoordinate);
+    Vector2f temp = m_centerCoordinate;
 
     // Shift the particle's center back to the origin
     translate(-m_centerCoordinate.x, -m_centerCoordinate.y);

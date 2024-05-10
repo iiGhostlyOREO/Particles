@@ -12,16 +12,22 @@ Engine::Engine() {
 void Engine::run() {
     // Construct a local Clock object to track time per frame
     Clock clock;
+    bool unit_tests_done = false;
 
     // Construct a local Particle for unit tests
-    cout << "Starting Particle unit tests..." << endl;
-    Particle p(m_Window, 4, { (int)m_Window.getSize().x / 2, (int)m_Window.getSize().y / 2 });
-    p.unitTests();
-    cout << "Unit tests complete. Starting engine..." << endl;
+
 
     // Game loop
     while (m_Window.isOpen())
     {
+        if (!unit_tests_done) {
+            unit_tests_done = true;
+            cout << "Starting Particle unit tests..." << endl;
+            Particle p(m_Window, 4, { (int)m_Window.getSize().x / 2, (int)m_Window.getSize().y / 2 });
+            p.unitTests();
+            cout << "Unit tests complete.  Starting engine..." << endl;
+        }
+
         // Restart the clock
         Time deltaTime = clock.restart();
 
@@ -86,7 +92,7 @@ void Engine::update(float dtAsSeconds) {
             it->update(dtAsSeconds);
 
             // Increment the iterator
-            ++it;
+            it++;
         } else {
             // Erase the particle whose time to live has expired
             it = m_particles.erase(it);
@@ -96,13 +102,13 @@ void Engine::update(float dtAsSeconds) {
 
 void Engine::draw() {
     // Clear the window
-    m_Window.clear();
+    this->m_Window.clear();
 
     // Loop through each particle and draw it
-    for (const auto& particle : m_particles) {
+    for (const auto& particle : this->m_particles) {
         m_Window.draw(particle);
     }
 
     // Display the window
-    m_Window.display();
+    this->m_Window.display();
 }
